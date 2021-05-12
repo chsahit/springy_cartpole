@@ -1,12 +1,21 @@
 import numpy as np
+from controller import CartpoleController
+
 from pydrake.math import RigidTransform, RollPitchYaw
 from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
+from pydrake.systems.controllers import LinearQuadraticRegulator
 from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.meshcat_visualizer import ConnectMeshcatVisualizer
 from pydrake.systems.analysis import Simulator
+from pydrake.systems.primitives import FirstOrderTaylorApproximation
 from pydrake.multibody.parsing import Parser
 from pydrake.multibody.tree import PrismaticJoint, LinearSpringDamper
 from pydrake.common import FindResourceOrThrow
+
+import matplotlib.pyplot as plt
+
+stiffness = 12
+base_wall_offset = 23.8
 
 def xyz_rpy_deg(xyz, rpy_deg):
     """Shorthand for defining a pose."""
@@ -19,16 +28,16 @@ def setup_walls(plant):
     plant.WeldFrames(
         frame_on_parent_P=plant.world_frame(),
         frame_on_child_C=plant.GetFrameByName("Wall", wall_right),
-        X_PC=xyz_rpy_deg([1.5, 0, 0], [0, 0, 0]))
+        X_PC=xyz_rpy_deg([base_wall_offset, 0, 0], [0, 0, 0]))
     right_joint = PrismaticJoint(
         "right_joint", plant.GetFrameByName("Wall", wall_right),
         plant.GetFrameByName("Wall", spring_wall_right), np.array([1, 0, 0]))
-    right_joint.set_default_translation(-0.3)
+    right_joint.set_default_translation(-2.3)
     plant.AddJoint(right_joint)
     right_spring = LinearSpringDamper(
         plant.GetBodyByName("Wall", wall_right), np.array([0, 0, 0]),
         plant.GetBodyByName("Wall", spring_wall_right), np.array([0, 0, 0]),
-        0.3, 2.0, 0.0)
+        2.3, stiffness, 0.0)
     plant.AddForceElement(right_spring)
 
     wall_left = Parser(plant).AddModelFromFile("wall.sdf", "wall_left")
@@ -36,24 +45,20 @@ def setup_walls(plant):
     plant.WeldFrames(
         frame_on_parent_P=plant.world_frame(),
         frame_on_child_C=plant.GetFrameByName("Wall", wall_left),
-        X_PC=xyz_rpy_deg([-1.5, 0, 0], [0, 0, 0]))
+        X_PC=xyz_rpy_deg([-base_wall_offset, 0, 0], [0, 0, 0]))
     left_joint = PrismaticJoint(
         "left_joint", plant.GetFrameByName("Wall", wall_left),
         plant.GetFrameByName("Wall", spring_wall_left), np.array([1, 0, 0]))
-    left_joint.set_default_translation(0.3)
+    left_joint.set_default_translation(2.3)
     plant.AddJoint(left_joint)
     left_spring = LinearSpringDamper(
         plant.GetBodyByName("Wall", wall_left), np.array([0, 0, 0]),
         plant.GetBodyByName("Wall", spring_wall_left), np.array([0, 0, 0]),
-        0.3, 2.0, 0.0)
+        2.3, stiffness, 0.0)
     plant.AddForceElement(left_spring)
-
-
 
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
-file_name = FindResourceOrThrow("drake/examples/multibody/cart_pole/cart_pole.sdf")
-#cartpole = Parser(plant).AddModelFromFile(file_name)
 cartpole = Parser(plant).AddModelFromFile("cart_pole.sdf")
 setup_walls(plant)
 plant.Finalize()
@@ -65,19 +70,28 @@ visualizer = ConnectMeshcatVisualizer(
     zmq_url="new")
 visualizer.vis.delete()
 #visualizer.set_planar_viewpoint(xmin=-2.5, xmax=2.5, ymin=-1.0, ymax=2.5)
-
+controller = builder.AddSystem(CartpoleController(plant))
+builder.Connect(plant.get_state_output_port(), controller.get_input_port(0))
+builder.Connect(controller.get_output_port(0),plant.get_actuation_input_port())
 diagram = builder.Build()
 # Set up a simulator to run this diagram
 simulator = Simulator(diagram)
 context = simulator.get_mutable_context()
 plant_context = plant.GetMyContextFromRoot(context)
-plant.get_actuation_input_port(cartpole).FixValue(plant_context, np.array([0]))
+#plant.get_actuation_input_port(cartpole).FixValue(plant_context, np.array([0]))
 # Set the initial conditions
-context.SetContinuousState([0, np.pi, -0.3, 0.3, 2, 0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
+context.SetContinuousState([0.2, np.pi - 0.2, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
 context.SetTime(0.0)
 
 visualizer.start_recording()
 simulator.AdvanceTo(10.0)
 visualizer.publish_recording()
 visualizer.vis.render_static()
+print("on input")
 input()
+
+plt.plot(controller.theta_dots)
+plt.plot(controller.thetas)
+plt.plot(controller.energies)
+#plt.plot(controller.energies)
+plt.show()
