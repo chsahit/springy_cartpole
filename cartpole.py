@@ -80,11 +80,11 @@ context = simulator.get_mutable_context()
 plant_context = plant.GetMyContextFromRoot(context)
 #plant.get_actuation_input_port(cartpole).FixValue(plant_context, np.array([0]))
 # Set the initial conditions
-context.SetContinuousState([0.2, np.pi - 0.2, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
+context.SetContinuousState([0.2, np.pi - 1.2, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
 context.SetTime(0.0)
 
 visualizer.start_recording()
-simulator.AdvanceTo(10.0)
+simulator.AdvanceTo(60.0)
 visualizer.publish_recording()
 visualizer.vis.render_static()
 print("on input")

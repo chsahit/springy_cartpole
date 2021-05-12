@@ -5,7 +5,7 @@ from pydrake.systems.primitives import FirstOrderTaylorApproximation
 m_cart = 10
 m_ball = 1
 g = 9.8
-l = np.pi - 0.6
+l = np.pi - 0.85
 desired_energy = m_ball*g*l
 class CartpoleController(LeafSystem):
     def __init__(self, plant):
@@ -45,7 +45,7 @@ class CartpoleController(LeafSystem):
             #print("lqr")
         else:
             tau = self.f(tau_energy, theta, theta_dot)
-            print("energy ", theta)
+        print("energy ", theta)
         tau = np.clip(tau, -15.0, 15.0)
         self.theta_dots.append(0.5*(theta_dot**2))
         self.thetas.append(-np.pi*g*np.cos(theta))
