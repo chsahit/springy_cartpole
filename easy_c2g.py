@@ -37,7 +37,7 @@ x0 = np.array([0, 0, 0, 1, 0, 1/m_c])
 x_star = np.array([0, 0, 0, -1, 0, 1/m_c])
 
 # construct all polynomials containing terms from x up till degree two
-deg_V = 6
+deg_V = 4
 V_poly = prog.NewFreePolynomial(Variables(x), deg_V)
 V = V_poly.ToExpression()
 
@@ -47,7 +47,7 @@ l = x_cart**2 # very simple (temporary) cost function l(x, u)
 Vdot = V.Jacobian(x).dot(f)
 
 # Construct a polynomial L representing the "Lagrange multiplier".
-deg_L = 6
+deg_L = 4
 L = prog.NewFreePolynomial(Variables(x), deg_L).ToExpression()
 
 # Construct another polynomial L_2 representing the Lagrange multiplier for z
@@ -79,9 +79,11 @@ int6 = int5.Integrate(z, 0.1, 1)
 
 # maximize the integral of V(x)
 #(TODO: comment this back in if the problem is feasible without this cost)
-#prog.AddCost(-1*int6.ToExpression())
-print("sahit: this is solving with deg_L=6, deg_V=6, eps=1e-18, both constraints, and no cost") #should try, l,v=4 remove each of the constraints
+prog.AddCost(-1*int6.ToExpression())
+print("sahit: this is solving with deg_L=4, deg_V=4, eps=1e-18, both constraints") #should try, l,v=4 remove each of the constraints
 # Call the solver.
+decision_vars = prog.decision_variables()
+prog.AddBoundingBoxConstraint(-10, 10, np.array([decision_vars]))
 result = Solve(prog)
 #assert result.is_success()
 
