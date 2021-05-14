@@ -1,5 +1,7 @@
 import numpy as np
 from controller import CartpoleController
+from lyapunov_controller import LyapunovCartpoleController
+from easy_c2g import compute_lyapunov_function
 
 from pydrake.math import RigidTransform, RollPitchYaw
 from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
@@ -57,6 +59,9 @@ def setup_walls(plant):
         2.3, stiffness, 0.0)
     plant.AddForceElement(left_spring)
 
+
+V = compute_lyapunov_function().ToExpression()
+
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
 cartpole = Parser(plant).AddModelFromFile("cart_pole.sdf")
@@ -70,7 +75,8 @@ visualizer = ConnectMeshcatVisualizer(
     zmq_url="new")
 visualizer.vis.delete()
 #visualizer.set_planar_viewpoint(xmin=-2.5, xmax=2.5, ymin=-1.0, ymax=2.5)
-controller = builder.AddSystem(CartpoleController(plant))
+#controller = builder.AddSystem(CartpoleController(plant))
+controller = builder.AddSystem(LyapunovCartpoleController(plant, V))
 builder.Connect(plant.get_state_output_port(), controller.get_input_port(0))
 builder.Connect(controller.get_output_port(0),plant.get_actuation_input_port())
 diagram = builder.Build()
@@ -80,7 +86,7 @@ context = simulator.get_mutable_context()
 plant_context = plant.GetMyContextFromRoot(context)
 #plant.get_actuation_input_port(cartpole).FixValue(plant_context, np.array([0]))
 # Set the initial conditions
-context.SetContinuousState([0.2, np.pi - 1.2, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
+context.SetContinuousState([0.0, np.pi - 0.02, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
 context.SetTime(0.0)
 
 visualizer.start_recording()
