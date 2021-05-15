@@ -5,7 +5,7 @@ import sys
 from pydrake.all import MathematicalProgram, Solve, Variables
 from pydrake.symbolic import Polynomial
 
-def compute_lyapunov_function():
+def compute_lyapunov_function(deg_V = 4, deg_L = 4):
     m_p = 1.0
     m_c = 10.0
     g = 9.8
@@ -38,17 +38,15 @@ def compute_lyapunov_function():
     x_star = np.array([0, 0, 0, -1, 0, 1/m_c])
 
     # construct all polynomials containing terms from x up till degree two
-    deg_V = 2
     V_poly = prog.NewFreePolynomial(Variables(x), deg_V)
     V = V_poly.ToExpression()
 
-    l = x_cart**2 + (c + 1)
+    loss = x_cart**2
 
     # Construct the polynomial which is the time derivative of V
     Vdot = V.Jacobian(x).dot(f)
 
     # Construct a polynomial L representing the "Lagrange multiplier".
-    deg_L = 2
     L = prog.NewFreePolynomial(Variables(x), deg_L).ToExpression()
 
     # Construct another polynomial L_2 representing the Lagrange multiplier for z
@@ -56,8 +54,8 @@ def compute_lyapunov_function():
 
     # Add a constraint that Vdot is strictly negative away from x0 (but make an
     # exception for the upright fixed point by multipling by s^2).
-    eps = 1e-18
-    constraint1 = prog.AddSosConstraint(l + Vdot + L * (s**2 + c**2 - 1) + L_2 * (z*(m_c + m_p*(s**2)) - 1) - eps * (x - x0).dot(x - x0) * s**2)
+    eps = 1e-4
+    constraint1 = prog.AddSosConstraint(loss + Vdot + L * (s**2 + c**2 - 1) + L_2 * (z*(m_c + m_p*(s**2)) - 1) - eps * (x - x0).dot(x - x0) * s**2)
 
     # Add V(0) = 0 constraint
     constraint2 = prog.AddLinearConstraint(
@@ -72,10 +70,10 @@ def compute_lyapunov_function():
 
     # integration of V(x) along different axes i think??
     int1 = V_poly.Integrate(x_cart, -5, 5)
-    int2 = int1.Integrate(xdot_cart, -1, 1)
+    int2 = int1.Integrate(xdot_cart, -2, 2)
     int3 = int2.Integrate(s, -1, 1)
     int4 = int3.Integrate(c, -1, 1)
-    int5 = int4.Integrate(thetadot, -1, 1)
+    int5 = int4.Integrate(thetadot, -2, 2)
     int6 = int5.Integrate(z, 0.1, 1)
 
     # maximize the integral of V(x)
@@ -84,7 +82,7 @@ def compute_lyapunov_function():
     print(f"Solving with deg_L={deg_L}, deg_V={deg_V}, eps={eps}")
     # Call the solver.
     decision_vars = prog.decision_variables()
-    prog.AddBoundingBoxConstraint(-20, 20, np.array([decision_vars]))
+    prog.AddBoundingBoxConstraint(-50, 50, np.array([decision_vars]))
     result = Solve(prog)
 
     assert result.is_success()

@@ -1,7 +1,6 @@
 import numpy as np
-from pydrake.systems.framework import LeafSystem, BasicVector, PortDataType
-from pydrake.common.value import Value
-from pydrake.systems.primitives import FirstOrderTaylorApproximation
+import matplotlib.pyplot as plt
+from easy_c2g import compute_lyapunov_function
 from pydrake.all import MathematicalProgram, Solve, Variables, Variable
 from pydrake.symbolic import Polynomial
 m_c = 10
@@ -10,16 +9,9 @@ g = 9.8
 l = np.pi - 0.85
 variable_order = {"x_cart(0)": 0, "xdot_cart(0)": 1, "s(0)": 2, "c(0)": 3, "thetadot(0)": 4, "z(0)": 5}
 
-class LyapunovCartpoleController(LeafSystem):
-    def __init__(self, plant, cost_to_go):
-        LeafSystem.__init__(self)
-        self.use_lqr = False
+class MockLyapunovIO():
+    def __init__(self, cost_to_go):
         self.cost_to_go = cost_to_go
-        self._plant = plant
-        self._plant_context = plant.CreateDefaultContext()
-        self._positions_port = self.DeclareVectorInputPort("configuration", BasicVector(8))
-        self.DeclareVectorOutputPort("controls", BasicVector(1), self.CalcOutput)
-        self._K = np.array([[ -3.16227766, 254.39247154,  -9.76923594,  55.17739406]])
 
     # map from [x, theta, xdot, thetadot] to [x, xdot, s, c, thetadot, z]
     def cost_to_go_state(self, cartpole_state):
@@ -36,10 +28,11 @@ class LyapunovCartpoleController(LeafSystem):
                 "xdot_cart(0)": c2g_state[1], "s(0)": c2g_state[2], "c(0)": c2g_state[3],
                 "thetadot(0)": c2g_state[4], "z(0)": c2g_state[5]}
         c2g_var_dict = dict()
-        variables = [None] * 6
+        variables = [None]*6
         for v in c2g.GetVariables():
             variables[variable_order[v.get_name()]] = v
             c2g_var_dict[v] = state_dict[v.get_name()]
+        print(variables)
         return variables, c2g_var_dict
 
     def compute_dynamics(self, x_cart, xdot_cart, s, c, thetadot, z, u):
@@ -50,15 +43,21 @@ class LyapunovCartpoleController(LeafSystem):
                 thetaddot_scaling*thetaddot_term, -z**2*2*m_p*s*c*thetadot]
         return f
 
-    def get_lyapunov_control(self, cartpole_state):
+    def get_lyapunov_output(self, cartpole_state):
         c2g_state = self.cost_to_go_state(cartpole_state)
         variables, c2g_var_dict = self.c2g_dict_variables(c2g_state, self.cost_to_go)
         prog = MathematicalProgram()
         u = prog.NewContinuousVariables(1, "u")[0]
         f = self.compute_dynamics(*c2g_state, u)
-        print(variables)
+        Vjac = self.cost_to_go.Jacobian(variables)
+        #print("Vjac: ", Vjac[1])
         Vdot = self.cost_to_go.Jacobian(variables).dot(f)
+        #print(Vdot)
         Vdot_at_state = Vdot.Substitute(c2g_var_dict)
+        c2g_var_dict_copy = c2g_var_dict.copy()
+        c2g_var_dict_copy.pop(variables[3])
+        Vdot_at_partial_state = Vdot.Substitute(c2g_var_dict_copy)
+        print("partial vdot: ", Vdot_at_partial_state.Expand())
         V_at_state = self.cost_to_go.Substitute(c2g_var_dict)
         #print("c2g = ", V_at_state)
         prog.AddCost(Vdot_at_state)
@@ -69,19 +68,29 @@ class LyapunovCartpoleController(LeafSystem):
         assert result.is_success()
         control = result.GetSolution(u)
         #print("picking: ", control)
-        return control
+        return float(V_at_state.to_string()), control
 
-    def CalcOutput(self, context, output):
-        state = self._positions_port.Eval(context)
-        cartpole_state = np.array([state[0], state[1], state[4], state[5]])
-        #lqr output
-        lqr_state = np.copy(cartpole_state)
-        lqr_state[1] = lqr_state[1] - np.pi
-        tau_lqr = -np.matmul(self._K, lqr_state)
-        if np.abs(np.cos(state[1]) + 1) < 0.00 and np.abs(state[0]) < 0.3:
-            self.use_lqr = True
-            tau = tau_lqr
-        else:
-            tau = np.array([self.get_lyapunov_control(cartpole_state)])
-        tau = np.clip(tau, -15.0, 15.0)
-        output.SetFromVector(tau)
+    def compute_V_outputs(self):
+        x = np.linspace(-10, 10)
+        V_outputs = list()
+        control_outputs = list()
+        for i in range(x.shape[0]):
+            state = np.array([x[i], np.pi, 0, 0])
+            outputs = self.get_lyapunov_output(state)
+            V_outputs.append(outputs[0])
+            control_outputs.append(outputs[1])
+        return x, np.array(V_outputs), np.array(control_outputs)
+
+
+if __name__ == "__main__":
+
+    V_poly = compute_lyapunov_function(deg_V=2, deg_L=2)
+    #V_poly = V_poly.RemoveTermsWithSmallCoefficients(1e-6)
+    #print(V_print)
+    V = V_poly.ToExpression()
+    lyapunov_mocker = MockLyapunovIO(V)
+    states,V_outputs, control_outputs = lyapunov_mocker.compute_V_outputs()
+    plt.plot(states, control_outputs)
+    plt.show()
+    plt.plot(states, V_outputs)
+    plt.show()

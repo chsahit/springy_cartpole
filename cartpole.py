@@ -1,5 +1,5 @@
 import numpy as np
-from controller import CartpoleController
+from controllers.energy_controller import CartpoleController
 from lyapunov_controller import LyapunovCartpoleController
 from easy_c2g import compute_lyapunov_function
 
@@ -90,7 +90,7 @@ context.SetContinuousState([0.0, np.pi - 0.02, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # 
 context.SetTime(0.0)
 
 visualizer.start_recording()
-simulator.AdvanceTo(60.0)
+simulator.AdvanceTo(6.0)
 visualizer.publish_recording()
 visualizer.vis.render_static()
 print("on input")
