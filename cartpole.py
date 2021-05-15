@@ -60,7 +60,7 @@ def setup_walls(plant):
     plant.AddForceElement(left_spring)
 
 
-V = compute_lyapunov_function().ToExpression()
+V = compute_lyapunov_function(deg_V=4, deg_L=4).ToExpression()
 
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
@@ -90,7 +90,7 @@ context.SetContinuousState([0.0, np.pi - 0.02, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # 
 context.SetTime(0.0)
 
 visualizer.start_recording()
-simulator.AdvanceTo(6.0)
+simulator.AdvanceTo(16.0)
 visualizer.publish_recording()
 visualizer.vis.render_static()
 print("on input")

@@ -56,7 +56,6 @@ class LyapunovCartpoleController(LeafSystem):
         prog = MathematicalProgram()
         u = prog.NewContinuousVariables(1, "u")[0]
         f = self.compute_dynamics(*c2g_state, u)
-        print(variables)
         Vdot = self.cost_to_go.Jacobian(variables).dot(f)
         Vdot_at_state = Vdot.Substitute(c2g_var_dict)
         V_at_state = self.cost_to_go.Substitute(c2g_var_dict)

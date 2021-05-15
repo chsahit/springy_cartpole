@@ -84,7 +84,7 @@ class MockLyapunovIO():
 
 if __name__ == "__main__":
 
-    V_poly = compute_lyapunov_function(deg_V=2, deg_L=2)
+    V_poly = compute_lyapunov_function(deg_V=4, deg_L=4)
     #V_poly = V_poly.RemoveTermsWithSmallCoefficients(1e-6)
     #print(V_print)
     V = V_poly.ToExpression()

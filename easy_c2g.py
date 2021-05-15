@@ -41,7 +41,7 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4):
     V_poly = prog.NewFreePolynomial(Variables(x), deg_V)
     V = V_poly.ToExpression()
 
-    loss = x_cart**2
+    loss = x_cart**2 + (c+1)**2 + thetadot**2
 
     # Construct the polynomial which is the time derivative of V
     Vdot = V.Jacobian(x).dot(f)
