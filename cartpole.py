@@ -60,7 +60,7 @@ def setup_walls(plant):
     plant.AddForceElement(left_spring)
 
 
-V = compute_lyapunov_function(deg_V=4, deg_L=4).ToExpression()
+V = compute_lyapunov_function(deg_V=2, deg_L=2).ToExpression()
 
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
@@ -86,11 +86,11 @@ context = simulator.get_mutable_context()
 plant_context = plant.GetMyContextFromRoot(context)
 #plant.get_actuation_input_port(cartpole).FixValue(plant_context, np.array([0]))
 # Set the initial conditions
-context.SetContinuousState([0.0, np.pi - 0.02, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
+context.SetContinuousState([1.0, np.pi - 0.5, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
 context.SetTime(0.0)
 
 visualizer.start_recording()
-simulator.AdvanceTo(16.0)
+simulator.AdvanceTo(26.0)
 visualizer.publish_recording()
 visualizer.vis.render_static()
 print("on input")

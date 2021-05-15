@@ -10,6 +10,7 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4):
     m_c = 10.0
     g = 9.8
     l = 0.5
+    #l = np.pi - 0.85
 
     prog = MathematicalProgram()
     s = prog.NewIndeterminates(1, "s")[0]
@@ -41,7 +42,7 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4):
     V_poly = prog.NewFreePolynomial(Variables(x), deg_V)
     V = V_poly.ToExpression()
 
-    loss = x_cart**2 + (c+1)**2 + thetadot**2
+    loss = (x_cart**2) + 10*(c+1)**2 + 0.5*(thetadot**2)
 
     # Construct the polynomial which is the time derivative of V
     Vdot = V.Jacobian(x).dot(f)
@@ -89,11 +90,11 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4):
 
     #print("V =")
     Vsol = Polynomial(result.GetSolution(V))
-    int1 = Vsol.Integrate(x_cart, -5, 5)
-    int2 = int1.Integrate(xdot_cart, -1, 1)
+    int1 = Vsol.Integrate(x_cart, -15, 15)
+    int2 = int1.Integrate(xdot_cart, -10, 10)
     int3 = int2.Integrate(s, -1, 1)
     int4 = int3.Integrate(c, -1, 1)
-    int5 = int4.Integrate(thetadot, -1, 1)
+    int5 = int4.Integrate(thetadot, -10, 10)
     int6 = int5.Integrate(z, 0.1, 1)
 
     #print(Vsol.RemoveTermsWithSmallCoefficients(1e-1))

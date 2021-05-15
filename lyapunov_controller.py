@@ -7,7 +7,8 @@ from pydrake.symbolic import Polynomial
 m_c = 10
 m_p = 1
 g = 9.8
-l = np.pi - 0.85
+#l = np.pi - 0.85
+l = 0.5
 variable_order = {"x_cart(0)": 0, "xdot_cart(0)": 1, "s(0)": 2, "c(0)": 3, "thetadot(0)": 4, "z(0)": 5}
 
 class LyapunovCartpoleController(LeafSystem):
@@ -53,22 +54,29 @@ class LyapunovCartpoleController(LeafSystem):
     def get_lyapunov_control(self, cartpole_state):
         c2g_state = self.cost_to_go_state(cartpole_state)
         variables, c2g_var_dict = self.c2g_dict_variables(c2g_state, self.cost_to_go)
-        prog = MathematicalProgram()
-        u = prog.NewContinuousVariables(1, "u")[0]
+        #prog = MathematicalProgram()
+        #u = prog.NewContinuousVariables(1, "u")[0]
+        u = Variable("u")
         f = self.compute_dynamics(*c2g_state, u)
         Vdot = self.cost_to_go.Jacobian(variables).dot(f)
         Vdot_at_state = Vdot.Substitute(c2g_var_dict)
         V_at_state = self.cost_to_go.Substitute(c2g_var_dict)
+        output_1 = Vdot_at_state.Substitute({u: 30})
+        output_2 = Vdot_at_state.Substitute({u: -30})
+        if float(output_1.to_string()) < float(output_2.to_string()):
+            return 50
+        else:
+            return -50
+        #return control
         #print("c2g = ", V_at_state)
-        prog.AddCost(Vdot_at_state)
-        prog.AddBoundingBoxConstraint(-15, 15, u)
-        result = Solve(prog)
+        #prog.AddCost(Vdot_at_state)
+        #prog.AddBoundingBoxConstraint(-15, 15, u)
+        #result = Solve(prog)
         #print("vdot if 15: ", Vdot_at_state.Substitute({u: 15}))
         #print("vdot if -15: ", Vdot_at_state.Substitute({u: -15}))
-        assert result.is_success()
-        control = result.GetSolution(u)
+        #assert result.is_success()
+        #control = result.GetSolution(u)
         #print("picking: ", control)
-        return control
 
     def CalcOutput(self, context, output):
         state = self._positions_port.Eval(context)
@@ -77,7 +85,7 @@ class LyapunovCartpoleController(LeafSystem):
         lqr_state = np.copy(cartpole_state)
         lqr_state[1] = lqr_state[1] - np.pi
         tau_lqr = -np.matmul(self._K, lqr_state)
-        if np.abs(np.cos(state[1]) + 1) < 0.00 and np.abs(state[0]) < 0.3:
+        if np.abs(np.cos(state[1]) + 1) < 0.5 and np.abs(state[0]) < 0.5:
             self.use_lqr = True
             tau = tau_lqr
         else:
