@@ -2,7 +2,8 @@ from pydrake.symbolic import Polynomial
 def get_system_parameters():
     #m_p, m_c, g, l, K (wall stiffness),
     # resting point (left spring), resting point right spring
-    return 1.0, 10.0, 9.8, 0.5, 12, -21.5, 21.5,
+    # TODO offset by width of cart AAAA
+    return 1.0, 10.0, 9.8, 0.5, 12, -1.5, 1.5,
 
 def compute_dynamics(x_cart, xdot_cart, s, c, thetadot, z, u, mode="no_contact"):
     m_p, m_c, g, l, k, x_01, x_02 = get_system_parameters()
@@ -48,14 +49,14 @@ def get_variable_list(c2g):
         variables[variable_order[v.get_name()]] = v
     return variables
 
-def integrate_c2g(V):
-    variables = get_variable_list(V)
-    Vpol = Polynomial(V)
-    int1 = Vpol.Integrate(variables[0], -15, 15)
+def integrate_c2g(V, x_cart_min=-15, x_cart_max=15, variables=None):
+    if variables is None:
+        variables = get_variable_list(V.ToExpression())
+    int1 = V.Integrate(variables[0], x_cart_min, x_cart_max)
     int2 = int1.Integrate(variables[1], -10, 10)
     int3 = int2.Integrate(variables[2], -1, 1)
     int4 = int3.Integrate(variables[3], -1, 1)
     int5 = int4.Integrate(variables[4], -20, 20)
     int6 = int5.Integrate(variables[5], 0.1, 1)
-    return int6.ToExpression()
+    return int6
 

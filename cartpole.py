@@ -2,6 +2,7 @@ import numpy as np
 from controllers.energy_controller import CartpoleController
 from lyapunov_controller import LyapunovCartpoleController
 from easy_c2g import compute_lyapunov_function
+import function_fuser
 
 from pydrake.math import RigidTransform, RollPitchYaw
 from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
@@ -60,11 +61,13 @@ def setup_walls(plant):
     plant.AddForceElement(left_spring)
 
 
-V_free = compute_lyapunov_function(deg_V=2, deg_L=2).ToExpression()
-V_cart_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="cart_left").ToExpression()
-V_cart_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="cart_right").ToExpression()
-V_pole_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_left").ToExpression()
-V_pole_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_right").ToExpression()
+V_free = compute_lyapunov_function(deg_V=2, deg_L=2)
+V_cart_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="cart_left")
+V_cart_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="cart_right")
+V_pole_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_left")
+V_pole_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_right")
+
+function_fuser.fuse_functions(V_free, V_cart_left)
 
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
@@ -80,7 +83,7 @@ visualizer = ConnectMeshcatVisualizer(
 visualizer.vis.delete()
 visualizer.set_planar_viewpoint(xmin=-2.5, xmax=2.5, ymin=-1.0, ymax=2.5)
 #controller = builder.AddSystem(CartpoleController(plant))
-controller = builder.AddSystem(LyapunovCartpoleController(plant, V_free))
+controller = builder.AddSystem(LyapunovCartpoleController(plant, V_free.ToExpression()))
 builder.Connect(plant.get_state_output_port(), controller.get_input_port(0))
 builder.Connect(controller.get_output_port(0),plant.get_actuation_input_port())
 diagram = builder.Build()
@@ -100,8 +103,9 @@ visualizer.vis.render_static()
 print("on input")
 input()
 
+"""
 plt.plot(controller.theta_dots)
 plt.plot(controller.thetas)
 plt.plot(controller.energies)
-#plt.plot(controller.energies)
+"""
 plt.show()

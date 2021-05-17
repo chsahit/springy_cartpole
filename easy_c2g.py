@@ -82,7 +82,6 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4, mode="no_contact"):
 
     #print("V =")
     Vsol = Polynomial(result.GetSolution(V))
-    Vexpr = result.GetSolution(V)
     """
     int1 = Vsol.Integrate(x_cart, -15, 15)
     int2 = int1.Integrate(xdot_cart, -10, 10)
@@ -91,7 +90,7 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4, mode="no_contact"):
     int5 = int4.Integrate(thetadot, -20, 20)
     int6 = int5.Integrate(z, 0.1, 1)
     """
-    integral = utils.integrate_c2g(Vexpr)
+    integral = utils.integrate_c2g(Vsol)
     #print(Vsol.RemoveTermsWithSmallCoefficients(1e-1))
     print("integral: ", integral)
 
