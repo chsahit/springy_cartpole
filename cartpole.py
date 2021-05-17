@@ -17,7 +17,7 @@ from pydrake.common import FindResourceOrThrow
 import matplotlib.pyplot as plt
 
 stiffness = 12
-base_wall_offset = 23.8
+base_wall_offset = 3.8
 
 def xyz_rpy_deg(xyz, rpy_deg):
     """Shorthand for defining a pose."""
@@ -60,7 +60,11 @@ def setup_walls(plant):
     plant.AddForceElement(left_spring)
 
 
-V = compute_lyapunov_function(deg_V=2, deg_L=2).ToExpression()
+V_free = compute_lyapunov_function(deg_V=2, deg_L=2).ToExpression()
+V_cart_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="cart_left").ToExpression()
+V_cart_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="cart_right").ToExpression()
+V_pole_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_left").ToExpression()
+V_pole_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_right").ToExpression()
 
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
@@ -74,9 +78,9 @@ visualizer = ConnectMeshcatVisualizer(
     scene_graph=scene_graph,
     zmq_url="new")
 visualizer.vis.delete()
-#visualizer.set_planar_viewpoint(xmin=-2.5, xmax=2.5, ymin=-1.0, ymax=2.5)
+visualizer.set_planar_viewpoint(xmin=-2.5, xmax=2.5, ymin=-1.0, ymax=2.5)
 #controller = builder.AddSystem(CartpoleController(plant))
-controller = builder.AddSystem(LyapunovCartpoleController(plant, V))
+controller = builder.AddSystem(LyapunovCartpoleController(plant, V_free))
 builder.Connect(plant.get_state_output_port(), controller.get_input_port(0))
 builder.Connect(controller.get_output_port(0),plant.get_actuation_input_port())
 diagram = builder.Build()

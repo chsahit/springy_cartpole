@@ -6,6 +6,7 @@ m_cart = 10
 m_ball = 1
 g = 9.8
 l = np.pi - 0.85
+#l = 0.5
 desired_energy = m_ball*g*l
 class CartpoleController(LeafSystem):
     def __init__(self, plant):
@@ -39,7 +40,7 @@ class CartpoleController(LeafSystem):
         tau_lqr = -np.matmul(self._K, cartpole_state)
         # energy shaping output:
         tau_energy = 1.0 * np.array([theta_dot*np.cos(theta)*(self.E(theta, theta_dot) - desired_energy) - 200*state[0] - 200*state[4]])
-        if np.abs(np.cos(theta) + 1) < 0.05 and np.abs(state[0]) < 0.3:
+        if np.abs(np.cos(theta) + 1) < 0.5 and np.abs(state[0]) < 0.5:
             self.use_lqr = True
             tau = tau_lqr
             #print("lqr")

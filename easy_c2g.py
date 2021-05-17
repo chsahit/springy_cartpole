@@ -5,12 +5,10 @@ import sys
 from pydrake.all import MathematicalProgram, Solve, Variables
 from pydrake.symbolic import Polynomial
 
-def compute_lyapunov_function(deg_V = 4, deg_L = 4):
-    m_p = 1.0
-    m_c = 10.0
-    g = 9.8
-    l = 0.5
-    #l = np.pi - 0.85
+import utils
+
+def compute_lyapunov_function(deg_V = 4, deg_L = 4, mode="no_contact"):
+    m_p, m_c, g, l, k, x_01, x_02 = utils.get_system_parameters()
 
     prog = MathematicalProgram()
     s = prog.NewIndeterminates(1, "s")[0]
@@ -26,12 +24,7 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4):
     x = np.array([x_cart, xdot_cart, s, c, thetadot, z])
     u = prog.NewIndeterminates(1, "u")[0]
 
-    xddot_scaling = z
-    xddot_term = u + m_p*s*(l*(thetadot**2) + g*c)
-    thetaddot_scaling = (1/l)*z
-    thetaddot_term = -u*c - m_p*l*(thetadot**2)*c*s - (m_c + m_p)*g*s
-    f = [xdot_cart, xddot_scaling*xddot_term,
-            c*thetadot, -s*thetadot, thetaddot_scaling*thetaddot_term, -z**2*2*m_p*s*c*thetadot]
+    f = utils.compute_dynamics(*x, u, mode=mode)
 
     # fixed point (resting at the bottom)
     x0 = np.array([0, 0, 0, 1, 0, 1/m_c])
@@ -78,7 +71,6 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4):
     int6 = int5.Integrate(z, 0.1, 1)
 
     # maximize the integral of V(x)
-    #(TODO: comment this back in if the problem is feasible without this cost)
     prog.AddCost(-1*int6.ToExpression())
     print(f"Solving with deg_L={deg_L}, deg_V={deg_V}, eps={eps}")
     # Call the solver.
@@ -90,15 +82,18 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4):
 
     #print("V =")
     Vsol = Polynomial(result.GetSolution(V))
+    Vexpr = result.GetSolution(V)
+    """
     int1 = Vsol.Integrate(x_cart, -15, 15)
     int2 = int1.Integrate(xdot_cart, -10, 10)
     int3 = int2.Integrate(s, -1, 1)
     int4 = int3.Integrate(c, -1, 1)
-    int5 = int4.Integrate(thetadot, -10, 10)
+    int5 = int4.Integrate(thetadot, -20, 20)
     int6 = int5.Integrate(z, 0.1, 1)
-
+    """
+    integral = utils.integrate_c2g(Vexpr)
     #print(Vsol.RemoveTermsWithSmallCoefficients(1e-1))
-    print("integral: ", int6)
+    print("integral: ", integral)
 
     return Vsol
 
