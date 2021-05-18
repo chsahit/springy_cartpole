@@ -1,4 +1,5 @@
 import numpy as np
+import sys
 from controllers.energy_controller import CartpoleController
 from lyapunov_controller import LyapunovCartpoleController
 from easy_c2g import compute_lyapunov_function
@@ -68,6 +69,7 @@ V_pole_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_left")
 V_pole_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_right")
 
 function_fuser.fuse_functions(V_free, V_cart_left)
+sys.exit()
 
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
