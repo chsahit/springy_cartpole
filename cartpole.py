@@ -18,8 +18,9 @@ from pydrake.common import FindResourceOrThrow
 
 import matplotlib.pyplot as plt
 
-stiffness = 12
-base_wall_offset = 3.8
+stiffness = 5
+base_wall_offset = 13.8
+spring_length = 12.3
 
 def xyz_rpy_deg(xyz, rpy_deg):
     """Shorthand for defining a pose."""
@@ -36,12 +37,12 @@ def setup_walls(plant):
     right_joint = PrismaticJoint(
         "right_joint", plant.GetFrameByName("Wall", wall_right),
         plant.GetFrameByName("Wall", spring_wall_right), np.array([1, 0, 0]))
-    right_joint.set_default_translation(-2.3)
+    right_joint.set_default_translation(-spring_length)
     plant.AddJoint(right_joint)
     right_spring = LinearSpringDamper(
         plant.GetBodyByName("Wall", wall_right), np.array([0, 0, 0]),
         plant.GetBodyByName("Wall", spring_wall_right), np.array([0, 0, 0]),
-        2.3, stiffness, 0.0)
+        spring_length, stiffness, 0.0)
     plant.AddForceElement(right_spring)
 
     wall_left = Parser(plant).AddModelFromFile("wall.sdf", "wall_left")
@@ -53,12 +54,12 @@ def setup_walls(plant):
     left_joint = PrismaticJoint(
         "left_joint", plant.GetFrameByName("Wall", wall_left),
         plant.GetFrameByName("Wall", spring_wall_left), np.array([1, 0, 0]))
-    left_joint.set_default_translation(2.3)
+    left_joint.set_default_translation(spring_length)
     plant.AddJoint(left_joint)
     left_spring = LinearSpringDamper(
         plant.GetBodyByName("Wall", wall_left), np.array([0, 0, 0]),
         plant.GetBodyByName("Wall", spring_wall_left), np.array([0, 0, 0]),
-        2.3, stiffness, 0.0)
+        spring_length, stiffness, 0.0)
     plant.AddForceElement(left_spring)
 
 
@@ -67,9 +68,11 @@ V_cart_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="cart_left")
 V_cart_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="cart_right")
 V_pole_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_left")
 V_pole_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_right")
+Vs = [V_free, V_cart_left, V_pole_left, V_cart_right, V_pole_right]
+Vs = [V_free, V_free, V_free, V_free, V_free]
+cost_to_gos = [V.ToExpression() for V in Vs]
 
-function_fuser.fuse_functions(V_free, V_cart_left)
-sys.exit()
+#function_fuser.fuse_functions(V_free, V_cart_left)
 
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
@@ -85,7 +88,7 @@ visualizer = ConnectMeshcatVisualizer(
 visualizer.vis.delete()
 visualizer.set_planar_viewpoint(xmin=-2.5, xmax=2.5, ymin=-1.0, ymax=2.5)
 #controller = builder.AddSystem(CartpoleController(plant))
-controller = builder.AddSystem(LyapunovCartpoleController(plant, V_free.ToExpression()))
+controller = builder.AddSystem(LyapunovCartpoleController(plant, cost_to_gos))
 builder.Connect(plant.get_state_output_port(), controller.get_input_port(0))
 builder.Connect(controller.get_output_port(0),plant.get_actuation_input_port())
 diagram = builder.Build()
@@ -95,7 +98,7 @@ context = simulator.get_mutable_context()
 plant_context = plant.GetMyContextFromRoot(context)
 #plant.get_actuation_input_port(cartpole).FixValue(plant_context, np.array([0]))
 # Set the initial conditions
-context.SetContinuousState([1.0, np.pi - 0.5, -2.3, 2.3, 0.0, 0.0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
+context.SetContinuousState([-1.0, np.pi - 0.5, -spring_length, spring_length, 0.0, 0.0, 0, 0.00]) # x, theta, wall1, wall2, xdot, thetadot, wall1dot, wall2dot
 context.SetTime(0.0)
 
 visualizer.start_recording()

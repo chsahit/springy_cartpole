@@ -46,10 +46,9 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4, mode="no_contact"):
     # Construct another polynomial L_2 representing the Lagrange multiplier for z
     L_2 = prog.NewFreePolynomial(Variables(x), deg_L).ToExpression()
 
-    # Add a constraint that Vdot is strictly negative away from x0 (but make an
-    # exception for the upright fixed point by multipling by s^2).
+    # constraint that V + l is SOS
     eps = 1e-4
-    constraint1 = prog.AddSosConstraint(loss + Vdot + L * (s**2 + c**2 - 1) + L_2 * (z*(m_c + m_p*(s**2)) - 1) - eps * (x - x0).dot(x - x0) * s**2)
+    constraint1 = prog.AddSosConstraint(loss + Vdot + L * (s**2 + c**2 - 1) + L_2 * (z*(m_c + m_p*(s**2)) - 1) - eps * (x - x_star).dot(x - x_star))
 
     # Add V(0) = 0 constraint
     constraint2 = prog.AddLinearConstraint(
@@ -57,7 +56,7 @@ def compute_lyapunov_function(deg_V = 4, deg_L = 4, mode="no_contact"):
             x_cart: 0,
             xdot_cart: 0,
             s: 0,
-            c: 1,
+            c: -1,
             thetadot: 0,
             z: 1/m_c
         }) == 0)

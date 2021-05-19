@@ -45,6 +45,8 @@ class MockLyapunovIO():
 
     def get_lyapunov_output(self, cartpole_state):
         c2g_state = self.cost_to_go_state(cartpole_state)
+        if abs(cartpole_state[1] - np.pi) < 0.1:
+            print("c2g state: ", c2g_state)
         variables, c2g_var_dict = self.c2g_dict_variables(c2g_state, self.cost_to_go)
         prog = MathematicalProgram()
         u = prog.NewContinuousVariables(1, "u")[0]
@@ -71,6 +73,7 @@ class MockLyapunovIO():
         return float(V_at_state.to_string()), control
 
     def compute_V_outputs(self):
+        #x = np.linspace(0, 2*np.pi)
         x = np.linspace(-10, 10)
         V_outputs = list()
         control_outputs = list()
@@ -84,13 +87,20 @@ class MockLyapunovIO():
 
 if __name__ == "__main__":
 
-    V_poly = compute_lyapunov_function(deg_V=4, deg_L=4)
+    V_poly = compute_lyapunov_function(deg_V=2, deg_L=2)
     #V_poly = V_poly.RemoveTermsWithSmallCoefficients(1e-6)
     #print(V_print)
     V = V_poly.ToExpression()
     lyapunov_mocker = MockLyapunovIO(V)
     states,V_outputs, control_outputs = lyapunov_mocker.compute_V_outputs()
     plt.plot(states, control_outputs)
+    plt.xlabel("x position")
+    plt.ylabel("control")
+    plt.title("Control policy")
     plt.show()
+    plt.xlabel("x position")
+    plt.ylabel("Value")
+    plt.title("Value function with respect to varying position")
+
     plt.plot(states, V_outputs)
     plt.show()

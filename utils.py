@@ -2,8 +2,7 @@ from pydrake.symbolic import Polynomial
 def get_system_parameters():
     #m_p, m_c, g, l, K (wall stiffness),
     # resting point (left spring), resting point right spring
-    # TODO offset by width of cart AAAA
-    return 1.0, 10.0, 9.8, 0.5, 12, -1.5, 1.5,
+    return 1.0, 10.0, 9.8, 0.5, 5, -1.5+0.12, 1.5-0.12,
 
 def compute_dynamics(x_cart, xdot_cart, s, c, thetadot, z, u, mode="no_contact"):
     m_p, m_c, g, l, k, x_01, x_02 = get_system_parameters()
