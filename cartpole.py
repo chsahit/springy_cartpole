@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import pickle
 from controllers.energy_controller import CartpoleController
 from lyapunov_controller import LyapunovCartpoleController
 from easy_c2g import compute_lyapunov_function
@@ -19,8 +20,8 @@ from pydrake.common import FindResourceOrThrow
 import matplotlib.pyplot as plt
 
 stiffness = 5
-base_wall_offset = 13.8
-spring_length = 12.3
+base_wall_offset =9.8 #23.8
+spring_length = 8.3
 
 def xyz_rpy_deg(xyz, rpy_deg):
     """Shorthand for defining a pose."""
@@ -69,10 +70,15 @@ V_cart_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="cart_right")
 V_pole_left = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_left")
 V_pole_right = compute_lyapunov_function(deg_V=2, deg_L=2, mode="pole_right")
 Vs = [V_free, V_cart_left, V_pole_left, V_cart_right, V_pole_right]
-Vs = [V_free, V_free, V_free, V_free, V_free]
-cost_to_gos = [V.ToExpression() for V in Vs]
 
-#function_fuser.fuse_functions(V_free, V_cart_left)
+#Vs = [V_free, V_free, V_free, V_free, V_free]
+"""
+V_free, V_cart_left = function_fuser.fuse_functions(V_free, V_cart_left)
+V_free, V_pole_left = function_fuser.fuse_functions(V_free, V_pole_left)
+V_free, V_cart_right = function_fuser.fuse_functions(V_free, V_cart_right)
+V_free, V_pole_right = function_fuser.fuse_functions(V_free, V_pole_right)
+"""
+cost_to_gos = [V.ToExpression() for V in Vs]
 
 builder = DiagramBuilder()
 plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
@@ -86,7 +92,7 @@ visualizer = ConnectMeshcatVisualizer(
     scene_graph=scene_graph,
     zmq_url="new")
 visualizer.vis.delete()
-visualizer.set_planar_viewpoint(xmin=-2.5, xmax=2.5, ymin=-1.0, ymax=2.5)
+#visualizer.set_planar_viewpoint(xmin=-2.5, xmax=2.5, ymin=-1.0, ymax=2.5)
 #controller = builder.AddSystem(CartpoleController(plant))
 controller = builder.AddSystem(LyapunovCartpoleController(plant, cost_to_gos))
 builder.Connect(plant.get_state_output_port(), controller.get_input_port(0))
@@ -102,15 +108,24 @@ context.SetContinuousState([-1.0, np.pi - 0.5, -spring_length, spring_length, 0.
 context.SetTime(0.0)
 
 visualizer.start_recording()
-simulator.AdvanceTo(26.0)
+simulator.AdvanceTo(25.5)
 visualizer.publish_recording()
 visualizer.vis.render_static()
 print("on input")
 input()
+pickle.dump([controller.x_history, controller.theta_history], open("traj_data/notfused.p", "wb"))
 
 """
 plt.plot(controller.theta_dots)
 plt.plot(controller.thetas)
 plt.plot(controller.energies)
 """
+"""
+plt.title("trajectory of cartpole (optimizied policy)")
+plt.plot([0], [np.pi], 'o', color='g')
+plt.plot([-1.0], [np.pi - 0.5], 'o', color='r')
+plt.xlabel("x position")
+plt.ylabel("theta")
+plt.plot(controller.x_history, controller.theta_history)
 plt.show()
+"""

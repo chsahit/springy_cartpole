@@ -3,6 +3,8 @@ import utils
 from pydrake.all import MathematicalProgram, Solve, Variables
 from pydrake.symbolic import Polynomial
 from pydrake.common.containers import EqualToDict
+# the parameters just have to be two arbitrary functions
+# not necessarily in the nocontact/leftcart contact modes
 def fuse_functions(V_no_contact, V_left_cart, deg_V=2):
     prog = MathematicalProgram()
     s = prog.NewIndeterminates(1, "s")[0]
@@ -19,14 +21,20 @@ def fuse_functions(V_no_contact, V_left_cart, deg_V=2):
             x_cart_max=-1.4, variables=x)
     no_contact_new_partial_int = utils.integrate_c2g(V_no_contact_new, x_cart_min=-1.6, \
             x_cart_max=-1.4, variables=x)
-    change_left_cart_no_contact = left_cart_new_partial_int - no_contact_new_partial_int
+    old_f1_partial_int = utils.integrate_c2g(V_no_contact, x_cart_min=-1.6, x_cart_max=-1.4)
+    old_f2_partial_int = utils.integrate_c2g(V_left_cart, x_cart_min=-1.6, x_cart_max=-1.4)
+    loss_term1 = (left_cart_new_partial_int - old_f1_partial_int)**2
+    loss_term2 = (no_contact_new_partial_int - old_f2_partial_int)**2
+    change_left_cart_no_contact = no_contact_new_partial_int - left_cart_new_partial_int
 
     no_contact_new_monom_map = V_no_contact_new.monomial_to_coefficient_map()
     no_contact_monom_map = V_no_contact.monomial_to_coefficient_map()
     left_cart_new_monom_map = V_left_cart_new.monomial_to_coefficient_map()
     left_cart_monom_map = V_left_cart.monomial_to_coefficient_map()
 
-    prog.AddCost((change_left_cart_no_contact**2).ToExpression())
+    #prog.AddCost((change_left_cart_no_contact**2).ToExpression())
+    prog.AddCost(loss_term1.ToExpression())
+    prog.AddCost(loss_term2.ToExpression())
     prog.AddBoundingBoxConstraint(-50, 50, np.array([prog.decision_variables()]))
     add_coefficient_constraints(prog, V_no_contact, V_no_contact_new)
     add_coefficient_constraints(prog, V_left_cart, V_left_cart_new)
@@ -37,6 +45,7 @@ def fuse_functions(V_no_contact, V_left_cart, deg_V=2):
     V_no_contact_new = Polynomial(result.GetSolution(V_no_contact_new.ToExpression()))
 
     print_diagnostic_info(V_no_contact, V_left_cart, V_no_contact_new, V_left_cart_new)
+    return V_no_contact_new, V_left_cart_new
 
 # EqualToDict isn't really cooperating
 def compare_monomial_powers(m1, m2):
@@ -73,7 +82,7 @@ def add_coefficient_constraints(prog, f1, f2):
         f2_monom = find_matching_monomial(f1_monom, f2)
         f1_coeff = f1_coeff_map[f1_monom]
         f2_coeff = f2_coeff_map[f2_monom]
-        prog.AddConstraint((f1_coeff - f2_coeff)**2 <= 1e-20)
+        prog.AddConstraint((f1_coeff - f2_coeff)**2 <= 1e-7) #1e-20
 
 def print_diagnostic_info(old_f1, old_f2, new_f1, new_f2):
     old_f1_partial_int = utils.integrate_c2g(old_f1, x_cart_min=-1.6, x_cart_max=-1.4)

@@ -20,6 +20,8 @@ class LyapunovCartpoleController(LeafSystem):
         self._positions_port = self.DeclareVectorInputPort("configuration", BasicVector(8))
         self.DeclareVectorOutputPort("controls", BasicVector(1), self.CalcOutput)
         self._K = np.array([[ -3.16227766, 254.39247154,  -9.76923594,  55.17739406]])
+        self.x_history = list()
+        self.theta_history = list()
 
     # map from [x, theta, xdot, thetadot] to [x, xdot, s, c, thetadot, z]
     def cost_to_go_state(self, cartpole_state):
@@ -27,7 +29,6 @@ class LyapunovCartpoleController(LeafSystem):
         c = np.cos(theta)
         s = np.sin(theta)
         z = 1/(m_c + m_p*s**2)
-        # xm xdot
         c2g_state = np.array([cartpole_state[0], cartpole_state[2], s, c, cartpole_state[3], z])
         return c2g_state
 
@@ -54,6 +55,7 @@ class LyapunovCartpoleController(LeafSystem):
         variables, c2g_var_dict = self.c2g_dict_variables(c2g_state, self.cost_to_gos[mode])
         #prog = MathematicalProgram()
         #u = prog.NewContinuousVariables(1, "u")[0]
+        #loss = u**2
         u = Variable("u")
         f = utils.compute_dynamics(*c2g_state, u)
         Vdot = self.cost_to_gos[mode].Jacobian(variables).dot(f)
@@ -62,21 +64,25 @@ class LyapunovCartpoleController(LeafSystem):
         output_1 = Vdot_at_state.Substitute({u: 30})
         output_2 = Vdot_at_state.Substitute({u: -30})
         if float(output_1.to_string()) < float(output_2.to_string()):
-            return 30
+            return 100
         else:
-            return -30
-        #return control
+            return -100
         #print("c2g = ", V_at_state)
-        #prog.AddCost(Vdot_at_state)
-        #prog.AddBoundingBoxConstraint(-15, 15, u)
-        #result = Solve(prog)
+        """
+        prog.AddCost(loss + Vdot_at_state)
+        prog.AddBoundingBoxConstraint(-15, 15, u)
+        result = Solve(prog)
         #print("vdot if 15: ", Vdot_at_state.Substitute({u: 15}))
         #print("vdot if -15: ", Vdot_at_state.Substitute({u: -15}))
-        #assert result.is_success()
-        #control = result.GetSolution(u)
-        #print("picking: ", control)
+        assert result.is_success()
+        control = result.GetSolution(u)
+        if abs(control) > 1.0:
+            print("picking: ", control)
+        return control
+        """
 
     def compute_mode(self, x, theta):
+        return 0
         if x < x_01:
             return 1
         elif x + l*np.sin(theta) < x_01:
@@ -91,15 +97,16 @@ class LyapunovCartpoleController(LeafSystem):
     def CalcOutput(self, context, output):
         state = self._positions_port.Eval(context)
         cartpole_state = np.array([state[0], state[1], state[4], state[5]])
-
+        self.x_history.append(state[0])
+        self.theta_history.append(state[1])
         #lqr output
         lqr_state = np.copy(cartpole_state)
         lqr_state[1] = lqr_state[1] - np.pi
         tau_lqr = -np.matmul(self._K, lqr_state)
-        if np.abs(np.cos(state[1]) + 1) < 0.5 and np.abs(state[0]) < 0.5:
+        if np.abs(np.cos(state[1]) + 1) < 0.2 and np.abs(state[0]) < 1.5:
             self.use_lqr = True
             tau = tau_lqr
         else:
             tau = np.array([self.get_lyapunov_control(cartpole_state)])
-        tau = np.clip(tau, -25.0, 25.0)
+        tau = np.clip(tau, -100.0, 100.0)
         output.SetFromVector(tau)

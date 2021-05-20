@@ -2,22 +2,25 @@ from pydrake.symbolic import Polynomial
 def get_system_parameters():
     #m_p, m_c, g, l, K (wall stiffness),
     # resting point (left spring), resting point right spring
-    return 1.0, 10.0, 9.8, 0.5, 5, -1.5+0.12, 1.5-0.12,
+    return 1.0, 10.0, 9.8, 0.5, 4, -5.5+0.12, 5.5-0.12,
 
 def compute_dynamics(x_cart, xdot_cart, s, c, thetadot, z, u, mode="no_contact"):
     m_p, m_c, g, l, k, x_01, x_02 = get_system_parameters()
+    k *= 10
     xddot_scaling = z
     xddot_term = u + m_p*s*(l*(thetadot**2) + g*c)
     thetaddot_scaling = (1/l)*z
     thetaddot_term = -u*c - m_p*l*(thetadot**2)*c*s - (m_c + m_p)*g*s
     additional_thetaddot_term = 0
     if mode == "cart_left":
+        print("\nCART LEFT\n")
         xddot_term += k * (x_01 - x_cart)
         thetaddot_term += -c * k * (x_01 - x_cart)
     elif mode == "cart_right":
         xddot_term += k * (x_02 - x_cart)
         thetaddot_term += -c * k * (x_02 - x_cart)
     elif mode == "pole_left":
+        print("\nPOLE LEFT\n")
         xddot_term = -k*(c**2)*(x_01 - x_cart - l*s)
         thetaddot_term += -c*k*(x_01 - x_cart - l*s)
         additional_thetaddot_numerator = (m_c + m_p)*k*c*(x_01 - x_cart - l*s)*z
